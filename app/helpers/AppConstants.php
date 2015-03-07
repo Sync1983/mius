@@ -42,21 +42,28 @@ class AppConstants {
     return $this->_params[$name];
   }
   
-  public function __set($name, $value) {
+  public function __set($name, $value) {    
     if(!array_key_exists($name, $this->_params)){
       $this->_params[$name] = $value;
       $this->_was_error = $this->_newParameter($name, $value);
       return;
     }    
     $old_value = $this->_params[$name];
+    
     if($old_value==$value){
       return $value;
     }    
     $this->_params[$name] = $value;
-    $this->_was_error = $this->_db->queryById(QueryListHelper::QUERY_SET_PARAMS, ['name'=>$name,'value'=>$value]);
+    $this->_was_error = $this->_db->queryById(QueryListHelper::QUERY_SET_PARAMS, ['name'=>"'$name'",'value'=>"'$value'"]);
+    
     return;
   }
   
+  public function getFormatPrice($fmt){
+    $name = "pay".intval($fmt);
+    return $this->$name;
+  }
+
   public function wasError(){
     return $this->_was_error;
   }

@@ -11,4 +11,5 @@ use app\helpers\ActiveRecord;
 class ClientsRecord extends ActiveRecord{
   protected $_table_name = "clients";
   protected $_id_name = "id";
+  
 }

@@ -42,12 +42,16 @@ class DbConnector {
     $db->set_charset("UTF-8");
   }
   
-  public function query($query,$params = []){
+  public function query($query,$params = [], $extend=[]){
     $query_prepend = $query;
     foreach ($params as $key=>$value){
       $query_prepend = str_replace("[".$key."]", $value, $query_prepend);
     }
-    $query_text = $query_prepend;    
+    $extend_txt = "";
+    foreach ($extend as $key=>$value){
+      $extend_txt .= " $key $value";
+    }
+    $query_text = str_replace("[extend]", $extend_txt, $query_prepend);    
     //echo $query_text;
     $result = $this->_db->query($query_text);
     if($this->_db->errno!=0){
@@ -57,8 +61,8 @@ class DbConnector {
     return $result;
   }
   
-  public function queryById($id,$params=[]){
-    return $this->query(QueryListHelper::getQueryText($id),$params);
+  public function queryById($id,$params=[],$extend=[]){
+    return $this->query(QueryListHelper::getQueryText($id),$params,$extend);
   }
 
   public function getErrorList(){

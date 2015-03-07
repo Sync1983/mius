@@ -38,4 +38,8 @@ class View {
 
     return ob_get_clean();
   }
+  
+  public function redirect($addres){
+    return "<script>document.location = '/$addres'</script>";
+  }
 }

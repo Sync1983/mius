@@ -168,3 +168,82 @@ table input{
   width: 98%;
   border: none;
 }
+
+a.pay{
+  margin: 0 10px;
+  width: 24px;
+  height: 24px;
+  background-image: url('/img/fail_icon.jpg');
+  background-repeat: no-repeat;
+  background-size: 24px 24px;
+  display: block;
+  position: relative;
+}
+a.payed{
+  background-image: url('/img/ok.png');  
+}
+
+table.place-shower{
+  text-align: center;
+  padding: 0;
+  margin: 0;
+  width: 200px;
+  height: 100px;  
+  border: 2px solid blue;
+  display: table;
+  position: relative;
+}
+
+table.place-shower tr{
+  height: 50px;
+}
+table.place-shower tr td{
+  text-align: center;  
+}
+table.place-shower td.A5{
+  width: 100px;
+  height: 50px;
+  display: table-cell;
+}
+
+ul.place-shower{
+  padding: 0;
+  margin: 0;
+  height: 110px;
+  display: block;
+}
+ul.place-shower li{
+  height: 110px;
+  float: left;
+  display: block;
+}
+
+ul.info {
+  height: 100px;
+  width: 100%;
+  display: block;    
+  border: 1px solid red;
+  position: relative;  
+}
+
+ul.info li{
+  float: none;
+  height: 20px;
+  display: block;  
+}
+
+ul.place-shower li.count{
+  height: 110px;    
+  font-size: 40pt;
+  font-weight: bold;
+  line-height: 100px;
+  vertical-align: middle;
+  position: relative;
+}
+
+ul.place-shower li.count:after{
+  content: "\2573";
+  font-size: 20pt;  
+  top:  -10px;
+  position: relative;
+}

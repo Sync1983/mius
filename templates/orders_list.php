@@ -40,8 +40,8 @@ use app\helpers\AppHelper;
       <td><?= date("d-m-Y",$item->order_time)   ?></td>
       <td><?= date("d-m-Y",$item->finish_time)  ?></td>
       <td><?= $item->price        ?></td>
-      <td><?= $item->pay          ?></td>
-      <td><a href="<?= AppHelper::indexRoute('delete-order',['id'=>$item->id])?>" d>Удалить</a></td>
+      <td><a href="<?= AppHelper::indexRoute('order-pay', ['id'=>$item->id])?>" class="pay <?= $item->pay?"payed":""?>"></a></td>
+      <td><a href="<?= AppHelper::indexRoute('order-delete',['id'=>$item->id])?>" d>Удалить</a></td>
     </tr>
     <?php endforeach;?>
   </tbody>

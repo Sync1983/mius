@@ -12,6 +12,7 @@ use app\helpers\QueryListHelper;
 use app\helpers\AppConstants;
 use app\models\ClientsRecord;
 use app\models\OrdersRecord;
+use app\models\Placer;
 use mysqli_result;
 
 class Application {
@@ -140,88 +141,78 @@ class Application {
   }
 
   protected function actionOrder(){
+    $clients = ClientsRecord::getAll($this->_db);
+    $item = new OrdersRecord($this->_db);
     return $this->_view->render("order",[
-        'name'  => '',
-        'user'  => '',
-        'phone' => '',
-        'format'=> 3,
-        'count' => 1,
-        'start_time' => strftime("%Y-%m-%d"),
-        'order_time' => 1,
+        'clients'  => $clients,
+        'item'     => $item,        
       ]);    
   }
   
   protected function actionOrderAdd() {
-    $request = $_POST;    
+    $request = $_POST;
     
-    $name  = AppHelper::initFromArray('name', $request);    
-    $user  = AppHelper::initFromArray('user', $request);    
-    $phone = AppHelper::initFromArray('phone', $request);    
-    $format= AppHelper::initFromArray('format', $request);    
-    $count = AppHelper::initFromArray('count', $request);    
-    $start_time = AppHelper::initFromArray('start_time', $request);    
-    $order_time = AppHelper::initFromArray('order_time', $request);  
+    $order = new OrdersRecord($this->_db);    
+    $order->create_time = time();
+    $order->client_id   = AppHelper::initFromArray('client_id', $request);
+    $order->format      = AppHelper::initFromArray('format', $request);
+    $order->order_cars  = AppHelper::initFromArray('count', $request);
+    $order->setStartTime(AppHelper::initFromArray('start_time', $request));
+    $order->setOrderLength(AppHelper::initFromArray('order_time', $request));    
     
+    $clients = ClientsRecord::getAll($this->_db);    
     
-    $dates = $this->getStartFinishDates($start_time, $order_time);    
-    $start_time_mon = $dates['start'];
-    $finish_time = $dates['finish'];
-    $s_time_txt = strftime("%Y-%m-%d",$start_time_mon);
-        
-    $query_params = [
-        'create_time' => time(),
-        'name'        => $name,
-        'user'        => $user,
-        'phone'       => $phone,
-        'format'      => $format,
-        'order_cars'  => $count,
-        'order_time'  => $start_time_mon,
-        'finish_time' => $finish_time,
-        'price'       => 0,
-        'pay'         => 0,
-    ];
-    
-    $return_params = [
-        'name'  => $name,
-        'user'  => $user,
-        'phone' => $phone,
-        'format'=> $format,
-        'count' => $count,
-        'start_time' => $start_time,
-        'order_time' => $order_time];
-    
-    $pay = $this->getPriceByFormat($format);
+    $result = $order->save();
+    if(!$result){
+      return $this->_view->render("order",[
+          'clients'  => $clients,
+          'item'     => $order,        
+          'error'    => "Ошибка сохранения! ".$this->_db->getErrorList()
+        ]);      
+    }
+    $pay = $this->_const->getFormatPrice($order->format);
     if(!$pay){
-      $return_params['error'] = "Ошбика! Невозможно определить стоимость формата! <br>".$this->_db->getErrorList();
-      return $this->_view->render("order",$return_params);      
+      return $this->_view->render("order",[
+          'clients'  => $clients,
+          'item'     => $order,        
+          'error'    => "Ошибка рассчета стоимости!"
+        ]);      
     }
-    
-    $query_params['price'] = $pay * $count;
-    
-    $query = QueryListHelper::getQueryText(QueryListHelper::QUERY_ORDER_ADD);
-    
-    if(!$this->_db->query($query,$query_params)){
-      $return_params['error'] = $this->_db->getErrorList();
-      return $this->_view->render("order",$return_params);
-    }
-    
-    $f_time_txt = strftime("%Y-%m-%d",$finish_time);
-    $pay_text   = $pay*$count." руб.";
-    $return_params['info']  = "Размещение начнется <b>$s_time_txt</b> и закончится <b>$f_time_txt</b>.<br>"
-                              . "Стоимость заказа составляет $pay_text";
-    
-    return $this->_view->render("order",$return_params);
-    
+    $s_time_txt = date("d-m-Y",$order->order_time);
+    $f_time_txt = date('d-m-Y',$order->finish_time);
+    $pay_text = $pay*$order->order_cars." руб.";
+    return $this->_view->render("order",[
+        'clients'  => $clients,
+        'item'     => $order,        
+        'info'     =>"Размещение начнется <b>$s_time_txt</b> и закончится <b>$f_time_txt</b>.<br>Стоимость заказа составляет $pay_text"
+      ]);    
   }
   
+  protected function actionOrderDelete(){
+    $id = AppHelper::initFromArray('id', $_GET);
+    $order = new OrdersRecord($this->_db,$id);
+    $order->delete();
+    return $this->_view->redirect(AppHelper::indexRoute("orders-list"));
+  }
+  
+  protected function actionOrderPay(){
+    $id = AppHelper::initFromArray('id', $_GET);
+    $order = new OrdersRecord($this->_db,$id);
+    $order->pay = 1- $order->pay;
+    $order->save();
+    return $this->_view->redirect(AppHelper::indexRoute("orders-list"));
+  }
+
   protected function actionOrdersList(){
     $order = new OrdersRecord($this->_db);
+    $order->setExtend(['ORDER BY'=>'`create_time` DESC']);
     $items_id = $order->getAllKeys();
     
     $items = [];
     $clients= [];
     foreach ($items_id as $id) {
       $items[$id] = new OrdersRecord($this->_db,$id);
+      $items[$id]->price = $this->_const->getFormatPrice($items[$id]->format)*$items[$id]->order_cars;
       $client_id = $items[$id]->client_id;
       if(!isset($clients[$client_id])){
         $clients[$client_id] = new ClientsRecord($this->_db,$client_id);
@@ -229,6 +220,21 @@ class Application {
     }    
     
     return $this->_view->render("orders_list", ['items'=>$items,'clients'=>$clients]);
+  }
+  
+  protected function actionMakeMaket(){
+    $orders = OrdersRecord::getAll($this->_db);
+    $clients_db = ClientsRecord::getAll($this->_db);
+    $clients = [];
+    $placer = new Placer($this->_const->car_count);
+    foreach ($orders as $order) {
+      /* @var $order OrdersRecord */
+      $placer->push($order->getId(), $order->format, $order->order_cars);
+      $clients[$order->getId()] = $clients_db[$order->client_id];
+    }
+    $result = $placer->run();
+    
+    return $this->_view->render("places", ['placer'=>$placer,'all_placed'=>$result,'clients'=>$clients,'error'=>  $placer->getQuene() ]);
   }
 
   protected function outError($error_text){
@@ -246,23 +252,6 @@ class Application {
   }
   
   //========================= Private ======================================
-  
-  private function getStartFinishDates($start,$length){
-    $s_time = getdate(strtotime($start));
-    
-    $current_mon = getdate();
-    
-    if(($s_time['year']<$current_mon['year'])||
-       (($s_time['year']==$current_mon['year'])&&($s_time['mon']<=$current_mon['mon']))
-       ){
-      $s_time['mon'] += 1;
-    }
-    $start_time = mktime(0, 0, 1, $s_time['mon'], 1, $s_time['year']);
-    $finish_time = mktime(23, 59, 59, $s_time['mon']+$length, 1, $s_time['year']);
-    $mon_days = date("%t", $finish_time);
-    $finish_time += 24*60*60*($mon_days-1);    
-    return ['start'=>$start_time,'finish'=>$finish_time];
-  }
   
   private function getPriceByFormat($format){
     $name = "pay".intval($format);

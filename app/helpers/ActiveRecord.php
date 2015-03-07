@@ -18,11 +18,24 @@ class ActiveRecord {
   protected $_is_new = true;
   /* @var $_db DbConnector */
   protected $_db;
+  protected $_extend = [];
   
+  public static function getAll($db){
+    $class = get_called_class();
+    $record = new $class($db);
+    $records_ids = $record->getAllKeys();
+    $answer = [];
+    foreach ($records_ids as $key){
+      $answer[$key] = new $class($db,$key);
+    }
+    return $answer;
+  }
+
   public function getAllKeys(){
     $result = $this->_db->queryById(QueryListHelper::QUERY_GET_KEYS, [
       'tbl_name'=> $this->_table_name,
-      'key_name'=> $this->_id_name]);
+      'key_name'=> $this->_id_name],
+      $this->_extend);
     if(!$result){
       throw new Exception($this->_db->getErrorList());
     }
@@ -55,7 +68,11 @@ class ActiveRecord {
     if($key===""){
       return;
     }
-    $answer = $this->_db->queryById(QueryListHelper::QUERY_GET_ROW, ['params'=> $this->_id_name."=".intval($key),'tbl_name'=> $this->_table_name ]);
+    $answer = $this->_db->queryById(
+                QueryListHelper::QUERY_GET_ROW, 
+                [ 'params'=> $this->_id_name."=".intval($key),
+                  'tbl_name'=> $this->_table_name ],
+                  $this->_extend);
     if(!$answer){
       throw new Exception($this->_db->getErrorList());
     }
@@ -78,6 +95,14 @@ class ActiveRecord {
     $this->_row[$name] = $value;
   }
   
+  public function setExtend($extend = []){
+    $this->_extend = $extend;
+  }
+  
+  public function clearExtend(){
+    $this->_extend = [];
+  }
+
   public function save(){
     if($this->_is_new){
       return $this->insert();
