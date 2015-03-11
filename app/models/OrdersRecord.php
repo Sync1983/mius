@@ -35,7 +35,10 @@ class OrdersRecord extends ActiveRecord{
 
   public function setStartTime($time){
     $now = getdate();
-    $set = getdate(strtotime($time));    
+    if(is_string($time)){
+      $time = strtotime($time)-10;
+    }
+    $set = getdate($time);    
     if(($now['year']<$set['year'])||
        (($now['year']==$set['year'])&&($now['mon']<=$set['mon']))
        ){

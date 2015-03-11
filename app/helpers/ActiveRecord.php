@@ -20,10 +20,10 @@ class ActiveRecord {
   protected $_db;
   protected $_extend = [];
   
-  public static function getAll($db){
+  public static function getAll($db, $extend=[]){
     $class = get_called_class();
     $record = new $class($db);
-    $records_ids = $record->getAllKeys();
+    $records_ids = $record->getAllKeys($extend);
     $answer = [];
     foreach ($records_ids as $key){
       $answer[$key] = new $class($db,$key);
@@ -31,11 +31,12 @@ class ActiveRecord {
     return $answer;
   }
 
-  public function getAllKeys(){
+  public function getAllKeys($extend=[]){    
+    $extend = array_merge($this->_extend,$extend);
     $result = $this->_db->queryById(QueryListHelper::QUERY_GET_KEYS, [
       'tbl_name'=> $this->_table_name,
       'key_name'=> $this->_id_name],
-      $this->_extend);
+      $extend);
     if(!$result){
       throw new Exception($this->_db->getErrorList());
     }
@@ -61,7 +62,7 @@ class ActiveRecord {
     if($id===""){
       return;
     }
-    $this->loadByKey($id);  
+    $this->loadByKey($id);    
   }
   
   public function loadByKey($key=""){

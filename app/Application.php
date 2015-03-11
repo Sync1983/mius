@@ -149,6 +149,66 @@ class Application {
       ]);    
   }
   
+  protected function actionCheck() {    
+    $order = new OrdersRecord($this->_db);    
+    
+    $order->create_time = time();
+    $order->client_id   = 0;
+    $order->format      = 3;
+    $order->order_cars  = 1;
+    $order->setStartTime (time());
+    $order->setOrderLength(1);    
+    
+    $clients = ClientsRecord::getAll($this->_db);    
+    
+    //$result = $order->save();
+    return $this->_view->render("check",[
+        'clients'  => $clients,
+        'item'     => $order,        
+        'change'   => false
+      ]);    
+  }
+  
+  protected function actionCheckStart() {    
+    $request = $_POST;
+    $order = new OrdersRecord($this->_db);    
+    
+    $order->create_time = time();    
+    $order->client_id   = AppHelper::initFromArray('client_id', $request);
+    $order->format      = AppHelper::initFromArray('format', $request);
+    $order->order_cars  = AppHelper::initFromArray('count', $request);
+    $order->setStartTime (AppHelper::initFromArray('start_time', $request));
+    $order->setOrderLength(AppHelper::initFromArray('order_time', $request));    
+    
+    $clients = ClientsRecord::getAll($this->_db);    
+    
+    $orders = OrdersRecord::getAll($this->_db,["WHERE order_time "=>"BETWEEN ".$order->order_time." AND ".$order->finish_time]);
+    $orders_pay = OrdersRecord::getAll($this->_db,["WHERE pay=1 and order_time "=>"BETWEEN ".$order->order_time." AND ".$order->finish_time]);
+    $clients_db = ClientsRecord::getAll($this->_db);
+    $clients = [];
+    $placer = new Placer($this->_const->car_count);
+    $placer_pay = new Placer($this->_const->car_count);
+    $placer->push("new", $order->format, $order->order_cars);
+    $placer_pay->push("new", $order->format, $order->order_cars);
+    
+    foreach ($orders as $order) {
+      $placer->push($order->getId(), $order->format, $order->order_cars);      
+    }
+    foreach ($orders_pay as $order) {
+      $placer_pay->push($order->getId(), $order->format, $order->order_cars);      
+    }
+    $result = $placer->run();
+    $result_pay = $placer_pay->run();
+    
+    return $this->_view->render("check_answer",[
+        'result'      => $result,
+        'result_pay'  => $result_pay,
+        'placer'      => $placer,
+        'placer_pay'  => $placer_pay,
+        'item'        => $order,
+      ]);    
+  }
+  
   protected function actionOrderAdd() {
     $request = $_POST;
     
@@ -157,7 +217,7 @@ class Application {
     $order->client_id   = AppHelper::initFromArray('client_id', $request);
     $order->format      = AppHelper::initFromArray('format', $request);
     $order->order_cars  = AppHelper::initFromArray('count', $request);
-    $order->setStartTime(AppHelper::initFromArray('start_time', $request));
+    $order->setStartTime (AppHelper::initFromArray('start_time', $request));
     $order->setOrderLength(AppHelper::initFromArray('order_time', $request));    
     
     $clients = ClientsRecord::getAll($this->_db);    
@@ -184,7 +244,55 @@ class Application {
     return $this->_view->render("order",[
         'clients'  => $clients,
         'item'     => $order,        
+        'change'   => false,
         'info'     =>"Размещение начнется <b>$s_time_txt</b> и закончится <b>$f_time_txt</b>.<br>Стоимость заказа составляет $pay_text"
+      ]);    
+  }
+  
+  protected function actionOrderChangeSave() { 
+    $request = $_POST;
+    $id = AppHelper::initFromArray('id', $request);
+    
+    $order = new OrdersRecord($this->_db,$id);    
+    
+    $order->client_id   = AppHelper::initFromArray('client_id', $request);
+    $order->format      = AppHelper::initFromArray('format', $request);
+    $order->order_cars  = AppHelper::initFromArray('count', $request);
+    $order->setStartTime (AppHelper::initFromArray('start_time', $request));
+    $order->setOrderLength(AppHelper::initFromArray('order_time', $request));    
+    
+    $result = $order->save();
+    if(!$result){
+      return $this->_view->render("order_list",[          
+          'item'     => $order,        
+          'error'    => "Ошибка сохранения! ".$this->_db->getErrorList()
+        ]);      
+    }
+    
+    return $this->_view->redirect("order-list");
+  }
+  
+  protected function actionOrderChange() {
+    $request = $_POST;
+    
+    $id = AppHelper::initFromArray('id', $_GET);
+    $order = new OrdersRecord($this->_db, $id);        
+    
+    $clients = ClientsRecord::getAll($this->_db);    
+    
+    $result = $order->save();
+    if(!$result){
+      return $this->_view->render("order",[
+          'clients'  => $clients,
+          'item'     => $order,        
+          'error'    => "Ошибка сохранения! ".$this->_db->getErrorList()
+        ]);      
+    }    
+    return $this->_view->render("order",[
+        'clients'  => $clients,
+        'item'     => $order,  
+        'change'   => true,
+        'info'     =>"Редактирование записи"
       ]);    
   }
   
@@ -223,7 +331,11 @@ class Application {
   }
   
   protected function actionMakeMaket(){
-    $orders = OrdersRecord::getAll($this->_db);
+    $test_order = new OrdersRecord($this->_db);
+    $test_order->setStartTime(time());
+    $test_order->setOrderLength(1);
+    
+    $orders = OrdersRecord::getAll($this->_db,["WHERE order_time "=>"BETWEEN ".$test_order->order_time." AND ".$test_order->finish_time]);
     $clients_db = ClientsRecord::getAll($this->_db);
     $clients = [];
     $placer = new Placer($this->_const->car_count);
@@ -234,7 +346,78 @@ class Application {
     }
     $result = $placer->run();
     
-    return $this->_view->render("places", ['placer'=>$placer,'all_placed'=>$result,'clients'=>$clients,'error'=>  $placer->getQuene() ]);
+    return $this->_view->render("places", [
+      'placer'      => $placer,
+      'all_placed'  => $result,
+      'clients'     => $clients,
+      'error'       => $placer->getQuene(),
+      'show_start'  => $test_order->order_time,
+      'show_finish' => $test_order->finish_time ]);
+  }
+  
+  protected function actionMakeMaketPay(){
+    $test_order = new OrdersRecord($this->_db);
+    $test_order->setStartTime(time());
+    $test_order->setOrderLength(2);
+    
+    $orders = OrdersRecord::getAll($this->_db,["WHERE pay = 1 AND order_time "=>"BETWEEN ".$test_order->order_time." AND ".$test_order->finish_time]);
+    $clients_db = ClientsRecord::getAll($this->_db);
+    $clients = [];
+    $placer = new Placer($this->_const->car_count);
+    foreach ($orders as $order) {
+      /* @var $order OrdersRecord */
+      $placer->push($order->getId(), $order->format, $order->order_cars);
+      $clients[$order->getId()] = $clients_db[$order->client_id];
+    }
+    $result = $placer->run();
+    
+    return $this->_view->render("places", [
+      'placer'      => $placer,
+      'all_placed'  => $result,
+      'clients'     => $clients,
+      'error'       => $placer->getQuene(),
+      'show_start'  => $test_order->order_time,
+      'show_finish' => $test_order->finish_time ]);
+  }
+  
+  protected function actionCountFree(){
+    $test_order = new OrdersRecord($this->_db);
+    $test_order->setStartTime(time());
+    $test_order->setOrderLength(1);
+    
+    $orders = OrdersRecord::getAll($this->_db,["WHERE order_time "=>"BETWEEN ".$test_order->order_time." AND ".$test_order->finish_time]);$placer = new Placer($this->_const->car_count);
+    foreach ($orders as $order) {
+      /* @var $order OrdersRecord */
+      $placer->push($order->getId(), $order->format, $order->order_cars);      
+    }
+    $result = $placer->run();
+    
+    return $this->_view->render("cnt_places", [
+      'placer'      => $placer,
+      'all_placed'  => $result,      
+      'error'       => $placer->getQuene(),
+      'show_start'  => $test_order->order_time,
+      'show_finish' => $test_order->finish_time ]);
+  }
+  
+  protected function actionCountFreePay(){
+    $test_order = new OrdersRecord($this->_db);
+    $test_order->setStartTime(time());
+    $test_order->setOrderLength(1);
+    
+    $orders = OrdersRecord::getAll($this->_db,["WHERE pay = 1 AND order_time "=>"BETWEEN ".$test_order->order_time." AND ".$test_order->finish_time]);$placer = new Placer($this->_const->car_count);
+    foreach ($orders as $order) {
+      /* @var $order OrdersRecord */
+      $placer->push($order->getId(), $order->format, $order->order_cars);    
+    }
+    $result = $placer->run();
+    
+    return $this->_view->render("cnt_places", [
+      'placer'      => $placer,
+      'all_placed'  => $result,      
+      'error'       => $placer->getQuene(),
+      'show_start'  => $test_order->order_time,
+      'show_finish' => $test_order->finish_time ]);
   }
 
   protected function outError($error_text){

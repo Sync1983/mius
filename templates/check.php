@@ -15,8 +15,7 @@ use app\models\ClientsRecord;
   <?php endif;?>
 
 <a href="<?= AppHelper::indexRoute("index")?>" class = "btn">Назад</a>
-<form action="<?= (!$change)?AppHelper::indexRoute('order-add'):AppHelper::indexRoute('order-change-save');?>" method="POST" class="order-input">
-  <input type="hidden" name = "id" value="<?= $item->id?>" >
+<form action="<?= AppHelper::indexRoute('check-start')?>" method="POST" class="order-input">  
   <div class="row">
     <label for="client_id">Организация</label>        
     <select name="client_id">
@@ -48,7 +47,7 @@ use app\models\ClientsRecord;
     <input name="order_time" type="number" placeholder="Введите количество месяцев"  value="<?= $item->orderLength()?>"/>
   </div>
   <div class="row">    
-    <input type="submit" value="Сохранить"/>
+    <input type="submit" value="Проверить"/>
   </div>
 </form>
 
