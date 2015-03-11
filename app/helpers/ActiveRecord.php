@@ -62,7 +62,8 @@ class ActiveRecord {
     if($id===""){
       return;
     }
-    $this->loadByKey($id);    
+    $this->loadByKey($id);  
+    $this->_is_new = false;
   }
   
   public function loadByKey($key=""){

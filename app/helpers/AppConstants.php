@@ -69,7 +69,7 @@ class AppConstants {
   }
 
   protected function _newParameter($name,$value){
-    $this->_db->queryById(QueryListHelper::QUERY_NEW_PARAMS, ['name'=>$name,'value'=>$value]);    
+    $this->_db->queryById(QueryListHelper::QUERY_NEW_PARAMS, ['name'=>"'$name'",'value'=>$value]);    
     return $value;
   }
   

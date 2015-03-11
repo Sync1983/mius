@@ -10,8 +10,9 @@ use Exception;
 class Place {
   protected $_free_place=4;
   protected $_placed =[];
+  protected $_dpkt =[];
   
-  public function canPlace($format,$id){
+  public function canPlace($format,$id,$deprecate){
     if( ($format!==3)&&
         ($format!==4)&&
         ($format!==5)){
@@ -21,17 +22,29 @@ class Place {
     if(($this->_free_place-$place) < 0){
       return false;
     }
+    $dpkt = false;
+    foreach (array_keys($this->_placed) as $key){
+      if(in_array($key, $deprecate)){
+        return false;
+      }
+    }
+    foreach ($this->_dpkt as $list){
+      if(in_array($id, $list)){
+        return false;
+      }
+    }
     if(isset($this->_placed[$id])){
       return false;
     }
     return true;
   }
   
-  public function place($format,$id){    
-    if(!$this->canPlace($format,$id)){
+  public function place($format,$id,$deprecate){    
+    if(!$this->canPlace($format,$id, $deprecate)){
       return FALSE;
     }
     $this->_placed[$id] = $format;
+    $this->_dpkt[$id] = $deprecate;
     $place = 1<<(5-$format);
     $this->_free_place -= $place;
     if($this->_free_place < 0){

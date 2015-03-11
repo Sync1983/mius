@@ -141,11 +141,13 @@ class Application {
   }
 
   protected function actionOrder(){
-    $clients = ClientsRecord::getAll($this->_db);
+    $clients = ClientsRecord::getAll($this->_db);    
+    $orders = OrdersRecord::getAll($this->_db,["WHERE order_time "=>">=".time()]);
     $item = new OrdersRecord($this->_db);
     return $this->_view->render("order",[
         'clients'  => $clients,
         'item'     => $item,        
+        'orders'   => $orders
       ]);    
   }
   
@@ -188,14 +190,14 @@ class Application {
     $clients = [];
     $placer = new Placer($this->_const->car_count);
     $placer_pay = new Placer($this->_const->car_count);
-    $placer->push("new", $order->format, $order->order_cars);
-    $placer_pay->push("new", $order->format, $order->order_cars);
+    $placer->push($order);
+    $placer_pay->push($order);
     
     foreach ($orders as $order) {
-      $placer->push($order->getId(), $order->format, $order->order_cars);      
+      $placer->push($order);
     }
     foreach ($orders_pay as $order) {
-      $placer_pay->push($order->getId(), $order->format, $order->order_cars);      
+      $placer_pay->push($order);
     }
     $result = $placer->run();
     $result_pay = $placer_pay->run();
@@ -219,6 +221,8 @@ class Application {
     $order->order_cars  = AppHelper::initFromArray('count', $request);
     $order->setStartTime (AppHelper::initFromArray('start_time', $request));
     $order->setOrderLength(AppHelper::initFromArray('order_time', $request));    
+    $deprecated = AppHelper::initFromArray('deprecate', $request);     
+    $order->deprecate   = implode(",", $deprecated);
     
     $clients = ClientsRecord::getAll($this->_db);    
     
@@ -244,7 +248,7 @@ class Application {
     return $this->_view->render("order",[
         'clients'  => $clients,
         'item'     => $order,        
-        'change'   => false,
+        'change'   => true,
         'info'     =>"Размещение начнется <b>$s_time_txt</b> и закончится <b>$f_time_txt</b>.<br>Стоимость заказа составляет $pay_text"
       ]);    
   }
@@ -260,6 +264,8 @@ class Application {
     $order->order_cars  = AppHelper::initFromArray('count', $request);
     $order->setStartTime (AppHelper::initFromArray('start_time', $request));
     $order->setOrderLength(AppHelper::initFromArray('order_time', $request));    
+    $deprecated = AppHelper::initFromArray('deprecate', $request);     
+    $order->deprecate   = implode(",", $deprecated);
     
     $result = $order->save();
     if(!$result){
@@ -279,19 +285,14 @@ class Application {
     $order = new OrdersRecord($this->_db, $id);        
     
     $clients = ClientsRecord::getAll($this->_db);    
+    $orders = OrdersRecord::getAll($this->_db,["WHERE order_time "=>">=".time()]);
     
-    $result = $order->save();
-    if(!$result){
-      return $this->_view->render("order",[
-          'clients'  => $clients,
-          'item'     => $order,        
-          'error'    => "Ошибка сохранения! ".$this->_db->getErrorList()
-        ]);      
-    }    
     return $this->_view->render("order",[
         'clients'  => $clients,
         'item'     => $order,  
-        'change'   => true,
+        'change'   => false,
+        'orders'   => $orders,
+        'deprecated' => explode(",", $order->deprecate),
         'info'     =>"Редактирование записи"
       ]);    
   }
@@ -341,7 +342,7 @@ class Application {
     $placer = new Placer($this->_const->car_count);
     foreach ($orders as $order) {
       /* @var $order OrdersRecord */
-      $placer->push($order->getId(), $order->format, $order->order_cars);
+      $placer->push($order);
       $clients[$order->getId()] = $clients_db[$order->client_id];
     }
     $result = $placer->run();
@@ -358,7 +359,7 @@ class Application {
   protected function actionMakeMaketPay(){
     $test_order = new OrdersRecord($this->_db);
     $test_order->setStartTime(time());
-    $test_order->setOrderLength(2);
+    $test_order->setOrderLength(1);
     
     $orders = OrdersRecord::getAll($this->_db,["WHERE pay = 1 AND order_time "=>"BETWEEN ".$test_order->order_time." AND ".$test_order->finish_time]);
     $clients_db = ClientsRecord::getAll($this->_db);
@@ -366,7 +367,7 @@ class Application {
     $placer = new Placer($this->_const->car_count);
     foreach ($orders as $order) {
       /* @var $order OrdersRecord */
-      $placer->push($order->getId(), $order->format, $order->order_cars);
+      $placer->push($order);
       $clients[$order->getId()] = $clients_db[$order->client_id];
     }
     $result = $placer->run();
@@ -388,7 +389,7 @@ class Application {
     $orders = OrdersRecord::getAll($this->_db,["WHERE order_time "=>"BETWEEN ".$test_order->order_time." AND ".$test_order->finish_time]);$placer = new Placer($this->_const->car_count);
     foreach ($orders as $order) {
       /* @var $order OrdersRecord */
-      $placer->push($order->getId(), $order->format, $order->order_cars);      
+      $placer->push($order);
     }
     $result = $placer->run();
     
@@ -408,7 +409,7 @@ class Application {
     $orders = OrdersRecord::getAll($this->_db,["WHERE pay = 1 AND order_time "=>"BETWEEN ".$test_order->order_time." AND ".$test_order->finish_time]);$placer = new Placer($this->_const->car_count);
     foreach ($orders as $order) {
       /* @var $order OrdersRecord */
-      $placer->push($order->getId(), $order->format, $order->order_cars);    
+      $placer->push($order);
     }
     $result = $placer->run();
     
@@ -434,17 +435,4 @@ class Application {
     return $this->$action();
   }
   
-  //========================= Private ======================================
-  
-  private function getPriceByFormat($format){
-    $name = "pay".intval($format);
-    $query = QueryListHelper::getQueryText(QueryListHelper::QUERY_GET_PRICE_BY_FORMAT);
-    /* @var $result mysqli_result */
-    $result = $this->_db->query($query, ['name'=>$name]);
-    if(!$result){
-      return 0;
-    }
-    $assoc = $result->fetch_assoc();    
-    return intval(AppHelper::initFromArray($name, $assoc));
-  }
 }

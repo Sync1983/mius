@@ -26,7 +26,7 @@ use app\models\Placer;
     $info = "<ul class=\"info\">";
     foreach ($data as $id=>$format){
       $client = $clients[$id];
-      $info .= "<li>[A$format] :".$client->name." Заказ №:".$id. "</li>";
+      $info .= "<li>[A$format] :".$client->name."[".$client->id."]"." Заказ №:".$id. "</li>";
     }
     $info .= "</ul>"
     ?>

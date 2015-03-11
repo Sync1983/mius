@@ -12,10 +12,10 @@ use mysqli;
 
 class DbConnector {
   public $_error_list = [];
-  private $_host;
-  private $_db_name;
-  private $_user;
-  private $_pass;
+  public $_host;
+  public $_db_name;
+  public $_user;
+  public $_pass;
   /* @var $_db \mysqli*/
   private $_db;
 
@@ -32,10 +32,9 @@ class DbConnector {
     $this->_user    =AppHelper::initFromArray("user",$params);
     $this->_pass    =AppHelper::initFromArray("pass",$params);
     
-    $this->_db = new mysqli();
+    $this->_db = new mysqli($this->_host, $this->_user, $this->_pass, $this->_db_name);
     $db = $this->_db;    
     
-    $db->connect($this->_host, $this->_user, $this->_pass, $this->_db_name);
     if($db->connect_errno!=0){
       throw new Exception("Cann`t connect to database with parameters: ".  json_encode($params)." [".$db->connect_error."]");
     }

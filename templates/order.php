@@ -1,6 +1,19 @@
 <?php 
 use app\helpers\AppHelper;
 use app\models\ClientsRecord;
+
+/* @var $client ClientsRecord */
+/* @var $order \app\models\OrdersRecord */    
+
+if(!isset($change)){
+  $change = false;
+}
+if(!isset($orders)){
+  $orders = [];
+}
+if(!isset($deprecated)){
+  $deprecated = [];
+}
 ?>
 
   <?php if(isset($error)&&$error):?>  
@@ -15,14 +28,12 @@ use app\models\ClientsRecord;
   <?php endif;?>
 
 <a href="<?= AppHelper::indexRoute("index")?>" class = "btn">Назад</a>
-<form action="<?= (!$change)?AppHelper::indexRoute('order-add'):AppHelper::indexRoute('order-change-save');?>" method="POST" class="order-input">
+<form action="<?= ($change)?AppHelper::indexRoute('order-add'):AppHelper::indexRoute('order-change-save');?>" method="POST" class="order-input">
   <input type="hidden" name = "id" value="<?= $item->id?>" >
   <div class="row">
     <label for="client_id">Организация</label>        
     <select name="client_id">
-      <?php foreach ($clients as $key=>$client):
-        /* @var $client ClientsRecord */
-        ?>
+      <?php foreach ($clients as $key=>$client): ?>
       <option value="<?=$client->getId()?>" <?= ($client->id==$item->client_id)?"selected":"" ?>>
         <?= $client->name." [".$client->person.", ".$client->phone."]"?>
       </option>        
@@ -47,8 +58,23 @@ use app\models\ClientsRecord;
     <label for="order_time">Длительность размещения</label>    
     <input name="order_time" type="number" placeholder="Введите количество месяцев"  value="<?= $item->orderLength()?>"/>
   </div>
+  <?php      foreach ($orders as $key=>$order): ?>
+    <input 
+      type="checkbox" 
+      name="deprecate[]" 
+      value="<?= $order->getId() ?>" 
+      <?= in_array($order->getId(), $deprecated)?"checked":""?> />
+      <span>Номер заказа:<?= $order->getId() ?>
+        Клиент: <?= $clients[$order->client_id]->name?>
+        [Машин: <?= $order->order_cars ?>
+        Размер: A<?= $order->format?>]
+      </span><br />        
+    
+  <?php endforeach;?>
+  <?php if(!$change):?>
   <div class="row">    
     <input type="submit" value="Сохранить"/>
-  </div>
+  </div>        
+  <?php endif;?>
 </form>
 

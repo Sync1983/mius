@@ -22,8 +22,12 @@ class Placer implements Iterator {
     }
   }
   
-  public function push($id,$format,$count){
-    $this->_quene[] = ['id'=>intval($id),'format'=>intval($format),'count'=>intval($count)];
+  public function push($item){    
+    $this->_quene[] = [
+      'id'=>intval($item->id),
+      'format'=>intval($item->format),
+      'count'=>intval($item->order_cars),
+      'dpkt'  => explode(",", $item->deprecate)];
   }
   
   public function run(){
@@ -99,7 +103,7 @@ class Placer implements Iterator {
   
   protected function tryPaste(&$item){
     foreach ($this->_places as $place){
-      if( $place->place($item['format'], $item['id']) ){
+      if( $place->place($item['format'], $item['id'],$item['dpkt']) ){
           $item['count']--;
           return true;     
       }
