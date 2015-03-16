@@ -21,8 +21,8 @@ use app\models\Placer;
   <span>
     <?php $free = $placer->getUnOptium();?>
     <ul>
-      <li>Свободно машин для размещения [A5]: <?= AppHelper::initFromArray(1, $free) ?></li>
-      <li>Свободно машин для размещения [A4]: <?= AppHelper::initFromArray(2, $free) ?></li>
+      <li>Свободно машин для размещения [A5]: <?= AppHelper::initFromArray(1, $free)+AppHelper::initFromArray(4, $free)+AppHelper::initFromArray(2, $free)+AppHelper::initFromArray(3, $free) ?></li>
+      <li>Свободно машин для размещения [A4]: <?= AppHelper::initFromArray(2, $free)+AppHelper::initFromArray(4, $free)+AppHelper::initFromArray(3, $free) ?></li>
       <li>Свободно машин для размещения [1A4+1A5]: <?= AppHelper::initFromArray(3, $free) ?></li>
       <li>Свободно машин для размещения [A3]: <?= AppHelper::initFromArray(4, $free) ?></li>
     </ul>  
@@ -42,8 +42,8 @@ use app\models\Placer;
   <span>
     <?php $free_pay = $placer_pay->getUnOptium();?>
     <ul>
-      <li>Свободно машин для размещения [A5]: <?= AppHelper::initFromArray(1, $free_pay) ?></li>
-      <li>Свободно машин для размещения [A4]: <?= AppHelper::initFromArray(2, $free_pay) ?></li>
+      <li>Свободно машин для размещения [A5]: <?= AppHelper::initFromArray(1, $free_pay)+AppHelper::initFromArray(4, $free_pay)+AppHelper::initFromArray(2, $free_pay)+AppHelper::initFromArray(3, $free_pay) ?></li>
+      <li>Свободно машин для размещения [A4]: <?= AppHelper::initFromArray(2, $free_pay)+AppHelper::initFromArray(4, $free_pay)+AppHelper::initFromArray(3, $free_pay) ?></li>
       <li>Свободно машин для размещения [1A4+1A5]: <?= AppHelper::initFromArray(3, $free_pay) ?></li>
       <li>Свободно машин для размещения [A3]: <?= AppHelper::initFromArray(4, $free_pay) ?></li>
     </ul>  

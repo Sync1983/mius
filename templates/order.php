@@ -70,11 +70,9 @@ if(!isset($deprecated)){
         Размер: A<?= $order->format?>]
       </span><br />        
     
-  <?php endforeach;?>
-  <?php if(!$change):?>
+  <?php endforeach;?>  
   <div class="row">    
     <input type="submit" value="Сохранить"/>
-  </div>        
-  <?php endif;?>
+  </div>
 </form>
 

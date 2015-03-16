@@ -12,4 +12,5 @@ use app\helpers\AppHelper;
   <li><a href="<?= AppHelper::indexRoute("count-free-pay")?>">+Посчитать свободные площадки (<b>только по оплаченным</b>)</a></li>
   <li><a href="<?= AppHelper::indexRoute("make-maket")?>">+Сформировать макеты</a></li>
   <li><a href="<?= AppHelper::indexRoute("make-maket-pay")?>">+Сформировать макеты (<b>только по оплаченным</b>)</a></li>
+  <li><a href="<?= AppHelper::indexRoute("logs")?>">+Логи</a></li>
 </ul>

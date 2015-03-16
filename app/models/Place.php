@@ -22,6 +22,9 @@ class Place {
     if(($this->_free_place-$place) < 0){
       return false;
     }
+    /*
+     * Проверка на запрет размещения
+     */
     $dpkt = false;
     foreach (array_keys($this->_placed) as $key){
       if(in_array($key, $deprecate)){
@@ -33,6 +36,7 @@ class Place {
         return false;
       }
     }
+    
     if(isset($this->_placed[$id])){
       return false;
     }

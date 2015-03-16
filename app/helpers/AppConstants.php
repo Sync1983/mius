@@ -8,6 +8,7 @@
 namespace app\helpers;
 use app\DbConnector;
 use app\helpers\QueryListHelper;
+use app\models\LogRecord;
 use mysqli_result;
 
 class AppConstants {
@@ -54,6 +55,9 @@ class AppConstants {
       return $value;
     }    
     $this->_params[$name] = $value;
+    $log = new LogRecord($this->_db);
+    $log->fill(LogRecord::COUNT_CHANGE, ['name'=>$name,'old'=>$old_value,'new'=>$value]);
+    $log->save();
     $this->_was_error = $this->_db->queryById(QueryListHelper::QUERY_SET_PARAMS, ['name'=>"'$name'",'value'=>"'$value'"]);
     
     return;

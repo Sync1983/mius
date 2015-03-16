@@ -48,6 +48,15 @@ CREATE TABLE IF NOT EXISTS `params` (
   UNIQUE KEY `name_UNIQUE` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 SQL3;
+$sql[4] = <<< SQL4
+CREATE TABLE IF NOT EXISTS `logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `time` int(11) DEFAULT NULL,
+  `code` tinyint(4) DEFAULT NULL,
+  `message` varchar(250) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+SQL4;
 
 $db = new DbConnector($params['database']);
 foreach ($sql as $sql_txt){

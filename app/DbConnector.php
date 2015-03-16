@@ -38,7 +38,7 @@ class DbConnector {
     if($db->connect_errno!=0){
       throw new Exception("Cann`t connect to database with parameters: ".  json_encode($params)." [".$db->connect_error."]");
     }
-    $db->set_charset("UTF-8");
+    $db->set_charset("utf8");
   }
   
   public function query($query,$params = [], $extend=[]){

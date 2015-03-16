@@ -8,12 +8,11 @@ namespace app;
 use app\helpers\AppHelper;
 use app\actions\Error;
 use app\DbConnector;
-use app\helpers\QueryListHelper;
 use app\helpers\AppConstants;
 use app\models\ClientsRecord;
 use app\models\OrdersRecord;
 use app\models\Placer;
-use mysqli_result;
+use app\models\LogRecord;
 
 class Application {
   private $_params;
@@ -23,7 +22,7 @@ class Application {
   /* @var $_db DbConnector */
   private $_db;
   /* @var $_const AppConstants */
-  private $_const;
+  private $_const;  
 
   public function run(){
     if(!$this->_route){
@@ -45,7 +44,7 @@ class Application {
     $this->_route = AppHelper::initFromArray("route", $_GET);
     $this->_view = new View();
     $this->_db  = new DbConnector($params['database']);
-    $this->_const = new AppConstants($this->_db);
+    $this->_const = new AppConstants($this->_db);    
   }
   
   //==================== protected ======================================
@@ -147,7 +146,8 @@ class Application {
     return $this->_view->render("order",[
         'clients'  => $clients,
         'item'     => $item,        
-        'orders'   => $orders
+        'orders'   => $orders,
+        'change'   => true,
       ]);    
   }
   
@@ -186,21 +186,30 @@ class Application {
     
     $orders = OrdersRecord::getAll($this->_db,["WHERE order_time "=>"BETWEEN ".$order->order_time." AND ".$order->finish_time]);
     $orders_pay = OrdersRecord::getAll($this->_db,["WHERE pay=1 and order_time "=>"BETWEEN ".$order->order_time." AND ".$order->finish_time]);
-    $clients_db = ClientsRecord::getAll($this->_db);
-    $clients = [];
+    
     $placer = new Placer($this->_const->car_count);
     $placer_pay = new Placer($this->_const->car_count);
     $placer->push($order);
     $placer_pay->push($order);
     
-    foreach ($orders as $order) {
-      $placer->push($order);
+    foreach ($orders as $order_t) {
+      $placer->push($order_t);
     }
-    foreach ($orders_pay as $order) {
-      $placer_pay->push($order);
+    foreach ($orders_pay as $order_t) {
+      $placer_pay->push($order_t);
     }
     $result = $placer->run();
     $result_pay = $placer_pay->run();
+    
+    $log = new LogRecord($this->_db);
+    $log->fill(LogRecord::CHECK,[
+      'fmt'=> $order->format,
+      'cnt'=> $order->order_cars,
+      'finish'=> $order->orderLength(),
+      'start'=> date("d-m-Y",$order->order_time),
+      'client'=> $clients[$order->client_id]->name,
+      'result'=>"[".($result*1).",".($result_pay*1)."]"]);
+    $log->save();
     
     return $this->_view->render("check_answer",[
         'result'      => $result,
@@ -225,8 +234,35 @@ class Application {
     $order->deprecate   = implode(",", $deprecated);
     
     $clients = ClientsRecord::getAll($this->_db);    
+    $orders = OrdersRecord::getAll($this->_db,["WHERE order_time "=>"BETWEEN ".$order->order_time." AND ".$order->finish_time]);
+    
+    $placer = new Placer($this->_const->car_count);
+    $placer->push($order);
+    
+    foreach ($orders as $order_t) {
+      $placer->push($order_t);
+    }    
+    $check = $placer->run();
+    if(!$check){
+      return $this->_view->render("order",[
+          'clients'  => $clients,
+          'item'     => $order,        
+          'error'    => "Ошибка добавления! Заказ невозможно разместить"
+        ]);      
+    }    
     
     $result = $order->save();
+    
+    $log = new LogRecord($this->_db);
+    $log->fill(LogRecord::ADD_ORDER,[
+      'id' => $order->id,
+      'fmt'=> $order->format,
+      'cnt'=> $order->order_cars,
+      'finish'=> $order->orderLength(),
+      'start'=> date("d-m-Y",$order->order_time),
+      'client'=> $clients[$order->client_id]->name]);      
+    $log->save();
+    
     if(!$result){
       return $this->_view->render("order",[
           'clients'  => $clients,
@@ -248,7 +284,7 @@ class Application {
     return $this->_view->render("order",[
         'clients'  => $clients,
         'item'     => $order,        
-        'change'   => true,
+        'change'   => false,
         'info'     =>"Размещение начнется <b>$s_time_txt</b> и закончится <b>$f_time_txt</b>.<br>Стоимость заказа составляет $pay_text"
       ]);    
   }
@@ -256,8 +292,17 @@ class Application {
   protected function actionOrderChangeSave() { 
     $request = $_POST;
     $id = AppHelper::initFromArray('id', $request);
+    $clients = ClientsRecord::getAll($this->_db);    
     
-    $order = new OrdersRecord($this->_db,$id);    
+    $order = new OrdersRecord($this->_db,$id);  
+    $params = [
+      'id'      => $id,
+      'fmt'     => $order->format,
+      'cnt'     => $order->order_cars,
+      'finish'  => $order->orderLength(),
+      'start'   => date("d-m-Y",$order->order_time),
+      'client'  => $clients[$order->client_id]->name,
+    ];
     
     $order->client_id   = AppHelper::initFromArray('client_id', $request);
     $order->format      = AppHelper::initFromArray('format', $request);
@@ -266,21 +311,44 @@ class Application {
     $order->setOrderLength(AppHelper::initFromArray('order_time', $request));    
     $deprecated = AppHelper::initFromArray('deprecate', $request);     
     $order->deprecate   = implode(",", $deprecated);
+    $orders = OrdersRecord::getAll($this->_db,["WHERE order_time "=>"BETWEEN ".$order->order_time." AND ".$order->finish_time]);
     
+    $placer = new Placer($this->_const->car_count);
+    $placer->push($order);
+    
+    foreach ($orders as $order_t) {
+      $placer->push($order_t);
+    }    
+    $check = $placer->run();
+    if(!$check){
+      return $this->_view->render("order",[
+          'clients'  => $clients,
+          'item'     => $order,
+          'change'   => false,
+          'error'    => "Ошибка добавления! Заказ невозможно разместить"
+        ]);      
+    }    
     $result = $order->save();
+    $log = new LogRecord($this->_db);
+    $log->fill(LogRecord::EDIT_ORDER,  array_merge($params,[ 
+      'id'      => $order->getId(),
+      'fmt1'    => $order->format,
+      'cnt1'    => $order->order_cars,
+      'finish1' => $order->orderLength(),
+      'start1'  => date("d-m-Y",$order->order_time),
+      'client1' => $clients[$order->client_id]->name]));      
+    $log->save();
     if(!$result){
-      return $this->_view->render("order_list",[          
+      return $this->_view->render("orders_list",[          
           'item'     => $order,        
           'error'    => "Ошибка сохранения! ".$this->_db->getErrorList()
         ]);      
     }
     
-    return $this->_view->redirect("order-list");
+    return $this->_view->redirect("index.php?route=orders-list");
   }
   
   protected function actionOrderChange() {
-    $request = $_POST;
-    
     $id = AppHelper::initFromArray('id', $_GET);
     $order = new OrdersRecord($this->_db, $id);        
     
@@ -300,6 +368,16 @@ class Application {
   protected function actionOrderDelete(){
     $id = AppHelper::initFromArray('id', $_GET);
     $order = new OrdersRecord($this->_db,$id);
+    $clients = ClientsRecord::getAll($this->_db);    
+    $log = new LogRecord($this->_db);
+    $log->fill(LogRecord::DEL_ORDER,[
+      'id' => $order->id,
+      'fmt'=> $order->format,
+      'cnt'=> $order->order_cars,
+      'finish'=> $order->orderLength(),
+      'start'=> date("d-m-Y",$order->order_time),
+      'client'=> $clients[$order->client_id]->name]);      
+    $log->save();
     $order->delete();
     return $this->_view->redirect(AppHelper::indexRoute("orders-list"));
   }
@@ -420,6 +498,11 @@ class Application {
       'show_start'  => $test_order->order_time,
       'show_finish' => $test_order->finish_time ]);
   }
+  
+  public function actionLogs(){
+    $logs = LogRecord::getAll($this->_db);
+    return $this->_view->render("logs_out",['logs'=>$logs]);
+  }  
 
   protected function outError($error_text){
     $error = new Error($error_text);
